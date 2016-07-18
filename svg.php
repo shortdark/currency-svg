@@ -1,41 +1,150 @@
 <?php
 
-class currencyGraph {
+if("http://www.shortdark.net/currency/"!=filter_var($_SERVER["HTTP_REFERER"], FILTER_SANITIZE_URL)){
+	header('Location: http://www.shortdark.net/currency/');
+	exit;
+}
 
-	// CONFIG
+/**
+ * CURRENCYGraph - collects data relating to currency exchange rates from JSON files and plots it as a SVG graph.
+ * PHP Version 5.4
+ * Version 0.1.2
+ * @package CURRENCYGraph
+ * @link https://github.com/shortdark/currency-svg/
+ * @author Neil Ludlow (shortdark) <neil@shortdark.net>
+ * @copyright 2016 Neil Ludlow
+ * @license http://www.gnu.org/copyleft/lesser.html GNU Lesser General Public License
+ * @note This program is distributed in the hope that it will be useful - WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.
+ */
+
+class CURRENCYGraph {
+
+	/**
+	 * ################
+	 * ##
+	 * ##  CONFIG
+	 * ##
+	 * ################
+	 */
+
+	/*
+	 * Where the JSON files are located relative to the script svg.php
+	 */
 	private $dir = "./json";
+	/*
+	 * The total width of the SVG, can be overridden by the size of the screen
+	 */
 	private $width_of_svg = 840;
+	/*
+	 * The total height of the SVG, can be overridden by the size of the screen
+	 */
 	private $height_of_svg = 540;
+	/*
+	 * The number of pixels per data point on the x-axis
+	 */
 	private $separator = 1.5;
+	/*
+	 * The number of horizontal lines along the y-axis
+	 */
 	private $iterations = 10;
 
-	// GLOBAL VARIABLES
+	/**
+	 * ################
+	 * ##
+	 * ##  GLOBAL VARIABLES
+	 * ##
+	 * ################
+	 */
+	/*
+	 * The array for the currency data
+	 */
 	private $currencies = array();
+	/*
+	 * From the left-side of the SVG to the right of the graph
+	 */
 	private $end_of_graph_x;
+	/*
+	 * From the top of the SVG to the bottom of the graph
+	 */
 	private $end_of_graph_y;
+	/*
+	 * The width of the graph, i.e. between the two axes
+	 */
 	private $width_of_graph;
+	/*
+	 * The height of the graph
+	 */
 	private $height_of_graph;
+	/*
+	 * The number of records we need to fill the size of graph we're making.
+	 * This is so that we don't have to store much more data than we need, saving resources and time.
+	 */
+	private $days_for_graph;
 
-	// Assign the key values we need to build the graph
+	/**
+	 * ################
+	 * ##
+	 * ##  SETUP METHODS
+	 * ##
+	 * ################
+	 */
+
+	/*
+	 * Set the color of the 3 graphs
+	 *
+	 * return
+	 */
 	private function assign_colors() {
 		$this -> colors = array('USD' => 'green', 'EUR' => 'blue', 'CNY' => 'red');
 		return;
 	}
 
+	/*
+	 * Set the lowest value for each graph
+	 *
+	 * return
+	 */
 	private function assign_start_of_axis() {
 		$this -> start_axis = array('USD' => 1, 'EUR' => 1, 'CNY' => 6);
 		return;
 	}
 
+	/*
+	 * Set the highest value for each graph
+	 *
+	 * return
+	 */
 	private function assign_end_of_axis() {
 		$this -> end_axis = array('USD' => 2, 'EUR' => 2, 'CNY' => 11);
 		return;
 	}
 
 	/*
+	 * Get the number of days we need to fill the graph
 	 *
+	 * return
+	 */
+	private function assign_number_of_days() {
+		// Only add the number of days for the size of graph that is being called
+		$this -> days_for_graph = intval($this -> width_of_graph / $this -> separator);
+		return;
+	}
+
+	/**
+	 * ################
+	 * ##
+	 * ##  METHODS
+	 * ##
+	 * ################
+	 */
+
+	/*
+	 * Get the names of the JSON files from directory, specified in $this->dir
+	 * and return the array in reverse order (with the highest date first)
 	 *
-	 * return array $currencies
+	 * return array $files
 	 */
 	private function grab_json_files() {
 		$dh = opendir($this -> dir);
@@ -49,10 +158,16 @@ class currencyGraph {
 		return $files;
 	}
 
+	/*
+	 * Read the required volume of files for the size of graph and make an array
+	 * $this->currencies
+	 *
+	 * return
+	 */
 	private function make_currency_array() {
 		$files = $this -> grab_json_files();
 		$f = 0;
-		while ($files[$f]) {
+		while ($files[$f] and $this -> days_for_graph >= $f) {
 			$filename = $files[$f];
 			$currency = file_get_contents("$this->dir/$filename");
 			$unravelled = json_decode($currency, TRUE);
@@ -70,6 +185,11 @@ class currencyGraph {
 		return;
 	}
 
+	/*
+	 * Draw the opening tag of the SVG and the basic axis lines
+	 *
+	 * return $graph
+	 */
 	private function set_up_svg_graph() {
 		$graph = "<svg id=\"graph\" width=\"" . $this -> width_of_svg . "px\" height=\"" . $this -> height_of_svg . "px\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">";
 		$graph .= "<path stroke=\"black\" stroke-width=\"0.4\" d=\"M10 10 v $this->height_of_graph\"/>";
@@ -78,6 +198,12 @@ class currencyGraph {
 		return $graph;
 	}
 
+	/*
+	 * Draws the axis labels with horizontal lines. The USD and EUR graphs use one axis,
+	 * CNY uses another (red).
+	 *
+	 * return $graph
+	 */
 	private function set_up_svg_axis() {
 		/*
 		 Draw main axis for USD/EUR
@@ -112,6 +238,11 @@ class currencyGraph {
 		return $graph;
 	}
 
+	/*
+	 * Draws the 3 graph lines in the colors specified in the set up methods.
+	 *
+	 * return $line
+	 */
 	private function draw_main_graphlines($curr) {
 		$g = 0;
 		$color = $this -> colors[$curr];
@@ -139,10 +270,16 @@ class currencyGraph {
 		return $line;
 	}
 
+	/*
+	 * Add vertical lines to mark the weeks, months and years. As Friday, Saturday and Sunday have the same value
+	 * I've made the new week start on Saturday. This method also labels every month, year and every 5th week.
+	 *
+	 * return $graph
+	 */
 	function add_weeks_months_years() {
 		$d = 0;
 		if ($this -> currencies[$d]['file']) {
-			$weeklegendx = ($this -> width_of_graph/2) -20;
+			$weeklegendx = ($this -> width_of_graph / 2) - 20;
 			$graph .= "<text x=\"$weeklegendx\" y=\"30\" font-family=\"sans-serif\" font-size=\"12px\" fill=\"black\">Week Numbers</text>";
 			while ($this -> currencies[$d]['file']) {
 				$dateval = $this -> currencies[$d]['file'];
@@ -185,6 +322,11 @@ class currencyGraph {
 		return $graph;
 	}
 
+	/*
+	 * Draw a white semi-transparent box and draw the key for the graph on top.
+	 *
+	 * return $graph
+	 */
 	private function add_key() {
 		$graph .= "<path fill-opacity=\"0.9\" d=\"M20 12 v140 h125 v-140 h-125\" fill=\"white\"></path>";
 		$graph .= "<text x=\"50\" y=\"40\" font-family=\"sans-serif\" font-size=\"16px\" fill=\"black\" text-decoration=\"underline\">KEY</text>";
@@ -197,6 +339,11 @@ class currencyGraph {
 		return $graph;
 	}
 
+	/*
+	 * Assemble the graph and output it.
+	 *
+	 * return $graph
+	 */
 	public function assemble_svg() {
 		$graph = $this -> set_up_svg_graph();
 		$graph .= $this -> set_up_svg_axis();
@@ -205,8 +352,8 @@ class currencyGraph {
 		$graph .= $this -> draw_main_graphlines('CNY');
 		$graph .= $this -> add_weeks_months_years();
 		$graph .= $this -> add_key();
-		$logox = $this -> end_of_graph_x -110;
-		$logoy = $this -> end_of_graph_y -15;
+		$logox = $this -> end_of_graph_x - 110;
+		$logoy = $this -> end_of_graph_y - 15;
 		$graph .= "<text x=\"$logox\" y=\"$logoy\" font-family=\"sans-serif\" font-size=\"16px\" fill=\"black\">shortdark.net</text>";
 		$graph .= "</svg>";
 
@@ -214,10 +361,10 @@ class currencyGraph {
 	}
 
 	function __construct() {
-		if (intval($_GET['wide']) and 840>intval($_GET['wide'])) {
+		if (intval($_GET['wide']) and 840 > intval($_GET['wide'])) {
 			$this -> width_of_svg = intval($_GET['wide']);
 		}
-		if (intval($_GET['tall']) and 650>intval($_GET['tall'])) {
+		if (intval($_GET['tall']) and 650 > intval($_GET['tall'])) {
 			$this -> height_of_svg = intval($_GET['tall']);
 		}
 		$this -> end_of_graph_x = $this -> width_of_svg - 30;
@@ -227,11 +374,12 @@ class currencyGraph {
 		$this -> assign_colors();
 		$this -> assign_start_of_axis();
 		$this -> assign_end_of_axis();
+		$this -> assign_number_of_days();
 		$this -> make_currency_array();
 	}
 
 }
 
-$draw_graph = new currencyGraph();
+$draw_graph = new CURRENCYGraph();
 echo $draw_graph -> assemble_svg();
 ?>
