@@ -1,8 +1,11 @@
 <?php
-// If the page isn't referred by http://www.shortdark.net/currency/ then it's either from elsewhere, or the svg.php
-// is being opened on it's own. We don't want this.
-if("http://www.shortdark.net/currency/"!=substr(filter_var($_SERVER["HTTP_REFERER"], FILTER_SANITIZE_URL),0,34)){
-	die('Please go to <a href="http://www.shortdark.net/currency/">http://www.shortdark.net/currency/</a>.');
+$servername = filter_var($_SERVER["SERVER_NAME"], FILTER_SANITIZE_URL);
+$servername_length_inc_slash = strlen($servername)+1;
+$directory_of_currency_svg = "currency";
+// If the page isn't referred by the same domain the script is on it's either refered from elsewhere, 
+// or if there is no referer the svg.php is being opened on it's own. We don't want this.
+if("$servername/" != substr(filter_var($_SERVER["HTTP_REFERER"], FILTER_SANITIZE_URL), 7, $servername_length_inc_slash)){
+	die("Please go to <a href='http://$servername/$directory_of_currency_svg/'>http://$servername/$directory_of_currency_svg/</a>.");
 }
 
 /**
