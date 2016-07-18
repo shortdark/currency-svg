@@ -1,8 +1,8 @@
 <?php
-
-if("http://www.shortdark.net/currency/"!=filter_var($_SERVER["HTTP_REFERER"], FILTER_SANITIZE_URL)){
-	header('Location: http://www.shortdark.net/currency/');
-	exit;
+// If the page isn't referred by http://www.shortdark.net/currency/ then it's either from elsewhere, or the svg.php
+// is being opened on it's own. We don't want this.
+if("http://www.shortdark.net/currency/"!=substr(filter_var($_SERVER["HTTP_REFERER"], FILTER_SANITIZE_URL),0,34)){
+	die('Please go to <a href="http://www.shortdark.net/currency/">http://www.shortdark.net/currency/</a>.');
 }
 
 /**
